@@ -520,11 +520,11 @@
                         '<div><br></div>' +
                         '<div class="price-filter">' +
                         '   <div class="info">' +
-                        '       <span class="secondary label">Sell Price:</span><br/><small>Receive After Tax: <span id="sell_after_tax">0</span></small>' +
+                        '       <span class="secondary label">Increase Futbin Price by:</span><br/>' +
                         '   </div>' +
                         '   <div class="buttonInfo">' +
                         '       <div class="inputBox">' +
-                        '           <input type="tel" class="numericInput" id="ab_sell_price" placeholder="7000">' +
+                        '           <input type="tel" class="numericInput" id="ab_sell_price" placeholder="0">' +
                         '       </div>' +
                         '   </div>' +
                         '</div>' +
@@ -1699,22 +1699,28 @@
                     window.purchasedCardCount++;
                 }
 
-                var sellPrice = parseInt(jQuery('#ab_sell_price').val());
-                if (isBin && sellPrice !== 0 && !isNaN(sellPrice)) {
-                    window.winCount++;
-                    let sym = " W:" + window.format_string(window.winCount.toString(), 4);
-                    writeToLog(sym + " | " + player_name + ' | ' + price_txt + ((isBin) ? ' | buy | success | selling for: ' + sellPrice : ' | bid | success |' + ' selling for: ' + sellPrice));
-                    window.play_audio('card_won');
-                    window.sellRequestTimeout = window.setTimeout(function () {
-                        services.Item.list(player, window.getSellBidPrice(sellPrice), sellPrice, 3600);
-                    }, window.getRandomWait());
-                } else {
-                    window.bidCount++;
-                    services.Item.move(player, enums.FUTItemPile.CLUB).observe(this, (function (sender, moveResponse) {
-                        let sym = " B:" + window.format_string(window.bidCount.toString(), 4);
-                        writeToLog(sym + " | " + player_name + ' | ' + price_txt + ((isBin) ? ' | buy | success | move to club' : ' | bid | success | waiting to expire'));
-                    }));
-                }
+                var increase_price_by = parseInt(jQuery('#ab_sell_price').val());
+
+                window.getSellPrice(player_name, (response) => {
+
+                    var sellPrice = parseInt(response);
+                    writeToLog("Response text: " + response);
+                    if (isBin && sellPrice !== 0 && !isNaN(sellPrice) && !isNaN(increase_price_by)) {
+                        window.winCount++;
+                        let sym = " W:" + window.format_string(window.winCount.toString(), 4);
+                        writeToLog(sym + " | " + player_name + ' | ' + price_txt + ((isBin) ? ' | buy | success | selling for: ' + sellPrice+increase_price_by : ' | bid | success |' + ' selling for: ' + sellPrice+increase_price_by));
+                        window.play_audio('card_won');
+                        window.sellRequestTimeout = window.setTimeout(function () {
+                            services.Item.list(player, window.getSellBidPrice(sellPrice+increase_price_by), sellPrice+increase_price_by, 3600);
+                        }, window.getRandomWait());
+                    } else {
+                        window.bidCount++;
+                        services.Item.move(player, enums.FUTItemPile.CLUB).observe(this, (function (sender, moveResponse) {
+                            let sym = " B:" + window.format_string(window.bidCount.toString(), 4);
+                            writeToLog(sym + " | " + player_name + ' | ' + price_txt + ((isBin) ? ' | buy | success | move to club' : ' | bid | success | waiting to expire'));
+                        }));
+                    }
+            })
 
                 if (jQuery('#telegram_buy').val() == 'B' || jQuery('#telegram_buy').val() == 'A') {
                     window.sendNotificationToUser("| " + player_name.trim() + ' | ' + price_txt.trim() + ' | buy |');
@@ -1839,4 +1845,13 @@
         services.Item.clearSoldItems().observe(this, function (t, response) {
         });
     }
+
+    window.getSellPrice = function (player_name, callback) {
+        let url = 'http://127.0.0.1:5000/player/' + player_name;
+        var xhttp = new XMLHttpRequest();
+        xhttp.addEventListener('load', () => callback(xhttp.responseText));
+        xhttp.open("GET", url);
+        xhttp.send();
+    }
+
 })();
